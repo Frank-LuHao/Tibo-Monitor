@@ -30,11 +30,39 @@ API = "https://api.fxtwitter.com/2"
 INTERVAL = 300
 MAX_PAGES = 5
 MAX_ATTEMPTS = 3
+FAILURE_EMAIL = os.environ.get("TIBO_MONITOR_FAILURE_EMAIL", "").strip()
+FEISHU_NOTIFY = os.environ.get("TIBO_MONITOR_FEISHU_NOTIFY", "").strip()
+ANNOUNCEMENT_WINDOW = 300
 RESET_CLASSES = {"confirmed", "announced", "discussion", "unrelated", "uncertain"}
+MACOS_BUNDLED_CODEX = Path("/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
+
+
+class AnalysisCancelled(Exception):
+    """A user stop is not an analysis failure."""
+
+
+class MailDeliveryError(Exception):
+    def __init__(self, message, retryable=False, uncertain=False, retry_after=0):
+        super().__init__(message)
+        self.retryable = retryable
+        self.uncertain = uncertain
+        self.retry_after = retry_after
 
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def find_codex():
+    """Prefer the current desktop-app CLI over a potentially stale PATH copy."""
+    candidates = [os.environ.get("CODEX_CLI_PATH")]
+    if os.name != "nt":
+        candidates.append(str(MACOS_BUNDLED_CODEX))
+    candidates.append(shutil.which("codex"))
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    raise RuntimeError("codex CLI not found; set CODEX_CLI_PATH or add codex to PATH")
 
 
 def atomic_json(path, value):
@@ -106,6 +134,18 @@ class Store:
                     state TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
                     retry_at REAL NOT NULL DEFAULT 0, error TEXT, analysis TEXT
                 );
+                CREATE TABLE IF NOT EXISTS failure_mail (
+                    id INTEGER PRIMARY KEY, post_ids TEXT NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0,
+                    retry_at REAL NOT NULL DEFAULT 0, error TEXT, sent_at TEXT
+                );
+                CREATE TABLE IF NOT EXISTS reset_notification (
+                    post_id TEXT PRIMARY KEY, reset_class TEXT NOT NULL,
+                    created INTEGER NOT NULL, url TEXT NOT NULL,
+                    queued_at REAL NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
+                    attempts INTEGER NOT NULL DEFAULT 0, retry_at REAL NOT NULL DEFAULT 0,
+                    error TEXT, sent_at TEXT
+                );
             """)
 
     @contextlib.contextmanager
@@ -131,6 +171,16 @@ class Store:
         with self.connect() as db:
             # A crash during a call must not discard its input or spend a retry.
             db.execute("UPDATE posts SET state='pending', attempts=max(0,attempts-1) WHERE state='analyzing'")
+            # A crash after delivery but before commit cannot safely be resent.
+            db.execute("UPDATE failure_mail SET state='unknown',error='Delivery interrupted; check Sent before retrying' "
+                       "WHERE state='sending'")
+            db.execute("UPDATE reset_notification SET state='unknown',error='Delivery interrupted; check Feishu before retrying' "
+                       "WHERE state='sending'")
+
+    def cancel(self, posts):
+        with self.connect() as db:
+            db.executemany("UPDATE posts SET state='pending',attempts=max(0,attempts-1),retry_at=0 "
+                           "WHERE id=? AND state='analyzing'", [(p['id'],) for p in posts])
 
     def ingest(self, posts, baseline=None):
         queued = 0
@@ -162,22 +212,156 @@ class Store:
         selected = prior[:12] + [p for p in prior[12:] if re.search(r"reset|landing", p.get("text", ""), re.I)][:8]
         return list({p["id"]: p for p in selected}.values())
 
-    def finish(self, post_id, analysis):
+    def finish(self, post, analysis):
         with self.connect() as db:
             db.execute("UPDATE posts SET state='done',analysis=?,error=NULL WHERE id=?",
-                       (json.dumps(analysis, ensure_ascii=False), post_id))
+                       (json.dumps(analysis, ensure_ascii=False), post["id"]))
+            if analysis["reset_class"] in {"announced", "confirmed"}:
+                db.execute("INSERT OR IGNORE INTO reset_notification "
+                           "(post_id,reset_class,created,url,queued_at) VALUES(?,?,?,?,?)",
+                           (post["id"], analysis["reset_class"], post["created_timestamp"],
+                            post["url"], time.time()))
 
     def fail(self, posts, error):
         with self.connect() as db:
+            failed_ids = []
             for post in posts:
-                row = db.execute("SELECT attempts FROM posts WHERE id=?", (post["id"],)).fetchone()
+                row = db.execute("SELECT attempts,state FROM posts WHERE id=?", (post["id"],)).fetchone()
+                if row["state"] != "analyzing":
+                    continue
                 state = "failed" if row["attempts"] >= MAX_ATTEMPTS else "pending"
                 db.execute("UPDATE posts SET state=?,retry_at=?,error=? WHERE id=?",
                            (state, time.time() + 300 * 2 ** (row["attempts"] - 1), str(error)[-3000:], post["id"]))
+                if state == "failed":
+                    failed_ids.append(post["id"])
+            if failed_ids:
+                db.execute("INSERT INTO failure_mail(post_ids) VALUES (?)", (json.dumps(failed_ids),))
 
     def stats(self):
         with self.connect() as db:
             return {r["state"]: r["n"] for r in db.execute("SELECT state,count(*) n FROM posts GROUP BY state")}
+
+    def mail_stats(self):
+        with self.connect() as db:
+            return {r["state"]: r["n"] for r in db.execute("SELECT state,count(*) n FROM failure_mail GROUP BY state")}
+
+    def notification_stats(self):
+        with self.connect() as db:
+            return {r["state"]: r["n"] for r in db.execute("SELECT state,count(*) n FROM reset_notification GROUP BY state")}
+
+
+def send_failure_email(post_ids, data):
+    if not FAILURE_EMAIL:
+        raise MailDeliveryError("TIBO_MONITOR_FAILURE_EMAIL is not configured")
+    cli = shutil.which("agently-cli")
+    if not cli:
+        raise MailDeliveryError("agently-cli not found")
+    links = "\n".join(f"https://x.com/{HANDLE}/status/{post_id}" for post_id in post_ids)
+    body = (f"Tibo 监控有 {len(post_ids)} 条动态连续分析失败 {MAX_ATTEMPTS} 次，已停止自动重试。\n"
+            f"需要你决定：排查模型或网络后，是否执行 retry-failed 重新排队。\n"
+            f"帖子：\n{links}\n状态目录：{data}")
+    command = [cli, "message", "+send", "--to", FAILURE_EMAIL,
+               "--subject", "Tibo 监控：分析三次失败，需要处理", "--body", body, "--confirmed"]
+    env = dict(os.environ, AGENTLY_WORKSPACE="codex")
+    try:
+        result = subprocess.run(command, env=env, capture_output=True, timeout=45)
+    except subprocess.TimeoutExpired as exc:
+        raise MailDeliveryError("Mail delivery timed out; check Sent before retrying", uncertain=True) from exc
+    except OSError as exc:
+        raise MailDeliveryError(str(exc)) from exc
+    if result.returncode:
+        # Keep the local error for diagnosis; never include raw subprocess logs in email.
+        detail = (result.stdout or result.stderr).decode("utf-8", errors="replace")[-3000:]
+        retry = re.search(r"retry[-_]after(?:_seconds)?[\"\s:=]+(\d+)", detail, re.I)
+        raise MailDeliveryError(f"agently-cli exit {result.returncode}: {detail}",
+                                retryable=result.returncode in {1, 4, 7},
+                                retry_after=int(retry.group(1)) if retry else 0)
+
+
+def process_failure_mail(store, sender=send_failure_email):
+    if sender is send_failure_email and not FAILURE_EMAIL:
+        return False
+    with store.connect() as db:
+        row = db.execute("SELECT * FROM failure_mail WHERE state='pending' AND retry_at<=? ORDER BY id LIMIT 1",
+                         (time.time(),)).fetchone()
+        if row is None:
+            return False
+        db.execute("UPDATE failure_mail SET state='sending',attempts=attempts+1 WHERE id=?", (row['id'],))
+    try:
+        sender(json.loads(row['post_ids']), store.data)
+    except Exception as exc:
+        attempts = row['attempts'] + 1
+        uncertain = isinstance(exc, MailDeliveryError) and exc.uncertain
+        retryable = isinstance(exc, MailDeliveryError) and exc.retryable and attempts < 3
+        state = 'unknown' if uncertain else ('pending' if retryable else 'error')
+        delay = max(300 * 2 ** (attempts - 1), getattr(exc, 'retry_after', 0))
+        with store.connect() as db:
+            db.execute("UPDATE failure_mail SET state=?,retry_at=?,error=? WHERE id=?",
+                       (state, time.time() + delay, str(exc)[-3000:], row['id']))
+        logging.exception("failure_mail_not_sent state=%s", state)
+    else:
+        with store.connect() as db:
+            db.execute("UPDATE failure_mail SET state='sent',sent_at=?,error=NULL WHERE id=?",
+                       (utc_now(), row['id']))
+        logging.info("failure_mail_sent posts=%s", len(json.loads(row['post_ids'])))
+    return True
+
+
+def send_reset_notification(rows):
+    if not FEISHU_NOTIFY:
+        raise MailDeliveryError("TIBO_MONITOR_FEISHU_NOTIFY is not configured")
+    latest = max(rows, key=lambda row: (row["created"], row["post_id"]))
+    if latest["reset_class"] == "confirmed":
+        message = "【Tibo Reset】\nTibo 已确认额度 reset 生效。"
+    else:
+        message = "【Tibo Reset】\nTibo 宣布额度将 reset。"
+    message += "\n原帖：" + latest["url"]
+    try:
+        result = subprocess.run([FEISHU_NOTIFY, message], capture_output=True, timeout=20)
+    except subprocess.TimeoutExpired as exc:
+        raise MailDeliveryError("Feishu delivery timed out; check Feishu before retrying", uncertain=True) from exc
+    except OSError as exc:
+        raise MailDeliveryError(str(exc)) from exc
+    if result.returncode:
+        detail = (result.stdout or result.stderr).decode("utf-8", errors="replace")[-3000:]
+        raise MailDeliveryError(f"Feishu notifier exit {result.returncode}: {detail}", retryable=True)
+
+
+def process_reset_notifications(store, sender=send_reset_notification):
+    if sender is send_reset_notification and not FEISHU_NOTIFY:
+        return False
+    now = time.time()
+    with store.connect() as db:
+        row = db.execute("SELECT * FROM reset_notification WHERE state='pending' AND retry_at<=? "
+                         "AND (reset_class='confirmed' OR queued_at<=?) ORDER BY created,post_id LIMIT 1",
+                         (now, now - ANNOUNCEMENT_WINDOW)).fetchone()
+        if row is None:
+            return False
+        if row["reset_class"] == "announced":
+            rows = db.execute("SELECT * FROM reset_notification WHERE state='pending' AND reset_class='announced' "
+                              "AND created>=? AND created<=? ORDER BY created,post_id",
+                              (row["created"], row["created"] + ANNOUNCEMENT_WINDOW)).fetchall()
+        else:
+            rows = [row]
+        ids = [r["post_id"] for r in rows]
+        db.executemany("UPDATE reset_notification SET state='sending',attempts=attempts+1 WHERE post_id=?", [(i,) for i in ids])
+    try:
+        sender(rows)
+    except Exception as exc:
+        attempts = row["attempts"] + 1
+        uncertain = isinstance(exc, MailDeliveryError) and exc.uncertain
+        retryable = isinstance(exc, MailDeliveryError) and exc.retryable and attempts < 3
+        state = "unknown" if uncertain else ("pending" if retryable else "error")
+        with store.connect() as db:
+            db.executemany("UPDATE reset_notification SET state=?,retry_at=?,error=? WHERE post_id=?",
+                           [(state, time.time() + 300 * 2 ** (attempts - 1), str(exc)[-3000:], i) for i in ids])
+        logging.exception("reset_notification_not_sent state=%s", state)
+    else:
+        with store.connect() as db:
+            db.executemany("UPDATE reset_notification SET state='sent',sent_at=?,error=NULL WHERE post_id=?",
+                           [(utc_now(), i) for i in ids])
+        logging.info("reset_notification_sent posts=%s", len(ids))
+    return True
 
 
 def request_json(path, params=None):
@@ -296,9 +480,7 @@ def validate_analyses(value, posts, context):
 
 
 def analyze(posts, context, data, stop=None):
-    codex = shutil.which("codex")
-    if not codex:
-        raise RuntimeError("codex CLI not found on PATH")
+    codex = find_codex()
     stop = stop or threading.Event()
     prompt = (ROOT / "analysis-prompt.txt").read_text(encoding="utf-8")
     prompt += "\n\nINPUT_JSON:\n" + json.dumps({"posts": [compact(p) for p in posts],
@@ -319,7 +501,7 @@ def analyze(posts, context, data, stop=None):
                 proc.stdin.close()
                 while proc.poll() is None:
                     if stop.wait(0.5):
-                        raise RuntimeError("Analysis interrupted by monitor stop")
+                        raise AnalysisCancelled("Analysis interrupted by monitor stop")
                     if time.monotonic() - started > 600:
                         raise TimeoutError("Codex analysis exceeded 600 seconds")
                 if proc.returncode != 0 or not result_path.exists():
@@ -381,9 +563,12 @@ def process_batch(store, reports, stop, analyzer=analyze, enrich=enrich_context)
         by_id = {p["id"]: p for p in posts}
         for item in results:
             save_report(reports, by_id[item["post_id"]], item)
-            store.finish(item["post_id"], item)
+            store.finish(by_id[item["post_id"]], item)
         store.put_meta(last_analysis_ok=utc_now(), last_analysis_error=None)
         logging.info("analysis_ok posts=%s", len(posts))
+    except AnalysisCancelled:
+        store.cancel(posts)
+        logging.info("analysis_cancelled posts=%s", len(posts))
     except Exception as exc:
         # Keep already committed members done if a later report write failed.
         with store.connect() as db:
@@ -406,7 +591,10 @@ def run(data, reports):
         def worker():
             while not stop.is_set():
                 try:
-                    if not process_batch(store, reports, stop):
+                    analyzed = process_batch(store, reports, stop)
+                    mailed = False if stop.is_set() else process_failure_mail(store)
+                    notified = False if stop.is_set() else process_reset_notifications(store)
+                    if not analyzed and not mailed and not notified:
                         wake.wait(2)
                         wake.clear()
                 except Exception as exc:
@@ -438,7 +626,9 @@ def run(data, reports):
                     store.put_meta(next_poll_at_utc=datetime.fromtimestamp(
                         time.time() + max(0, next_poll - time.monotonic()), timezone.utc).isoformat())
                 atomic_json(data / "heartbeat.json", {"time": utc_now(), "pid": os.getpid(),
-                                                       "analyzer_alive": thread.is_alive(), "stats": store.stats()})
+                                                       "analyzer_alive": thread.is_alive(), "stats": store.stats(),
+                                                       "failure_mail": store.mail_stats(),
+                                                       "reset_notification": store.notification_stats()})
                 time.sleep(2)
         except KeyboardInterrupt:
             pass
@@ -467,7 +657,8 @@ def main():
     elif args.command == "status":
         store = Store(data)
         value = {"running": is_running(data), "data_directory": str(data),
-                 "reports_directory": str(args.reports_dir.resolve()), "stats": store.stats(), "state": store.meta()}
+                 "reports_directory": str(args.reports_dir.resolve()), "stats": store.stats(), "state": store.meta(),
+                 "failure_mail": store.mail_stats(), "reset_notification": store.notification_stats()}
         heartbeat = data / "heartbeat.json"
         if heartbeat.exists():
             value["heartbeat"] = json.loads(heartbeat.read_text(encoding="utf-8"))

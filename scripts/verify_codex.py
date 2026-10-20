@@ -1,4 +1,4 @@
-"""Optional one-call validation against the bundled historical post fixtures."""
+"""Optional one-call validation against bundled generalization fixtures."""
 import argparse
 import json
 from pathlib import Path
@@ -8,8 +8,10 @@ import monitor as m
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=Path.cwd() / "outputs" / "tibo-monitor-validation")
+    parser.add_argument("--fixtures", type=Path,
+                        default=m.ROOT.parent / "references" / "generic-validation-fixtures.json")
     args = parser.parse_args()
-    fixtures = json.loads((m.ROOT.parent / "references" / "validation-fixtures.json").read_text(encoding="utf-8"))
+    fixtures = json.loads(args.fixtures.read_text(encoding="utf-8"))
     posts, context = fixtures["posts"], fixtures["context"]
     results = m.analyze(posts, context, m.DEFAULT_DATA / "validation")
     by_id = {p["id"]: p for p in posts}
@@ -21,7 +23,8 @@ def main():
                        "expected": expected, "passed": result["reset_class"] in expected})
     report = {"verified_at_utc": m.utc_now(), "passed": all(c["passed"] for c in checks),
               "checks": checks, "analyses": results,
-              "scope": "Historical classification only; not future discovery or notifications"}
+              "fixture_source": fixtures.get("source", str(args.fixtures)),
+              "scope": "Supplied classification cases only; not future discovery or notifications"}
     m.atomic_json(args.output_dir / "validation-result.json", report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if not report["passed"]:

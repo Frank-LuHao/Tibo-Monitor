@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import tempfile
 import threading
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -138,6 +139,112 @@ class MonitorTests(unittest.TestCase):
         with m.InstanceLock(self.data / "instance.lock"):
             self.assertTrue(m.is_running(self.data))
         self.assertFalse(m.is_running(self.data))
+
+    def exhaust_analysis_retries(self, posts=None):
+        posts = posts or [post()]
+        self.store.ingest(posts)
+        for _ in range(3):
+            claimed = self.store.claim()
+            self.store.fail(claimed, "model unavailable")
+            with self.store.connect() as db:
+                db.execute("UPDATE posts SET retry_at=0")
+
+    def test_failure_mail_only_after_third_failure_and_no_duplicates(self):
+        self.store.ingest([post()])
+        for attempt in range(3):
+            self.store.fail(self.store.claim(), "offline")
+            self.assertEqual(self.store.mail_stats(), {"pending": 1} if attempt == 2 else {})
+            with self.store.connect() as db:
+                db.execute("UPDATE posts SET retry_at=0")
+        self.store.fail([post()], "same failure")
+        sent = []
+        self.assertTrue(m.process_failure_mail(self.store, lambda ids, _: sent.append(ids)))
+        self.store.recover()
+        self.assertFalse(m.process_failure_mail(self.store, lambda *_: self.fail("duplicate email")))
+        self.assertEqual(sent, [["100"]])
+        self.assertEqual(self.store.mail_stats(), {"sent": 1})
+
+    def test_one_mail_groups_failed_batch_and_survives_restart(self):
+        self.exhaust_analysis_retries([post(), post("101")])
+        reopened = m.Store(self.data)
+        reopened.recover()
+        sent = []
+        m.process_failure_mail(reopened, lambda ids, _: sent.append(ids))
+        self.assertEqual(sent, [["100", "101"]])
+
+    def test_user_cancellation_never_exhausts_retries_or_emails(self):
+        self.store.ingest([post()])
+        def cancel(*_):
+            raise m.AnalysisCancelled()
+        for _ in range(4):
+            m.process_batch(self.store, self.data / 'reports', threading.Event(), cancel, lambda p, c: c)
+        self.assertEqual(self.store.stats(), {"pending": 1})
+        self.assertEqual(self.store.mail_stats(), {})
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT attempts FROM posts").fetchone()[0], 0)
+
+    def test_mail_retries_are_bounded_and_keep_analysis_failed(self):
+        self.exhaust_analysis_retries()
+        def offline(*_):
+            raise m.MailDeliveryError('network unavailable', retryable=True)
+        for attempt in range(3):
+            with self.assertLogs(level='ERROR'):
+                m.process_failure_mail(self.store, offline)
+            self.assertEqual(self.store.mail_stats(), {"pending": 1} if attempt < 2 else {"error": 1})
+            self.assertFalse(m.process_failure_mail(self.store, lambda *_: self.fail('retry too early')))
+            with self.store.connect() as db:
+                db.execute("UPDATE failure_mail SET retry_at=0")
+        self.assertEqual(self.store.stats(), {"failed": 1})
+
+    def test_delivery_timeout_and_crash_do_not_automatically_resend(self):
+        self.exhaust_analysis_retries()
+        def timeout(*_):
+            raise m.MailDeliveryError('timeout', uncertain=True)
+        with self.assertLogs(level='ERROR'):
+            m.process_failure_mail(self.store, timeout)
+        self.assertEqual(self.store.mail_stats(), {"unknown": 1})
+        self.assertFalse(m.process_failure_mail(self.store, lambda *_: self.fail('duplicate risk')))
+        with self.store.connect() as db:
+            db.execute("UPDATE failure_mail SET state='sending'")
+        self.store.recover()
+        self.assertEqual(self.store.mail_stats(), {"unknown": 1})
+
+    def test_mail_command_uses_authorized_recipient_and_workspace(self):
+        with patch.dict('os.environ', {'TIBO_MONITOR_FAILURE_EMAIL': 'alerts@example.invalid'}):
+            with patch.object(m, 'FAILURE_EMAIL', 'alerts@example.invalid'):
+                with patch.object(m.shutil, 'which', return_value='/mock/agently-cli'):
+                    with patch.object(m.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, b'', b'')) as run:
+                        m.send_failure_email(['100'], self.data)
+        args, kwargs = run.call_args
+        command = args[0]
+        self.assertEqual(command[command.index('--to') + 1], 'alerts@example.invalid')
+        self.assertIn('--confirmed', command)
+        self.assertEqual(kwargs['env']['AGENTLY_WORKSPACE'], 'codex')
+        self.assertIn('https://x.com/thsottiaux/status/100', command[command.index('--body') + 1])
+
+    def test_notifications_wait_locally_until_explicitly_configured(self):
+        self.exhaust_analysis_retries()
+        self.assertFalse(m.process_failure_mail(self.store))
+        self.assertEqual(self.store.mail_stats(), {"pending": 1})
+        with self.store.connect() as db:
+            db.execute("INSERT INTO reset_notification(post_id,reset_class,created,url,queued_at) VALUES(?,?,?,?,?)",
+                       ("100", "confirmed", 100, "https://x.com/thsottiaux/status/100", 100))
+        self.assertFalse(m.process_reset_notifications(self.store))
+        self.assertEqual(self.store.notification_stats(), {"pending": 1})
+
+    def test_cli_rate_limit_and_timeout_preserve_delivery_semantics(self):
+        with patch.object(m, 'FAILURE_EMAIL', 'alerts@example.invalid'):
+            with patch.object(m.shutil, 'which', return_value='/mock/agently-cli'):
+                response = subprocess.CompletedProcess([], 7, b'{"error":{"message":"Retry-After: 900"}}', b'')
+                with patch.object(m.subprocess, 'run', return_value=response):
+                    with self.assertRaises(m.MailDeliveryError) as rate:
+                        m.send_failure_email(['100'], self.data)
+                self.assertTrue(rate.exception.retryable)
+                self.assertEqual(rate.exception.retry_after, 900)
+                with patch.object(m.subprocess, 'run', side_effect=subprocess.TimeoutExpired('mock', 45)):
+                    with self.assertRaises(m.MailDeliveryError) as timeout:
+                        m.send_failure_email(['100'], self.data)
+                self.assertTrue(timeout.exception.uncertain)
 
 
 if __name__ == "__main__":

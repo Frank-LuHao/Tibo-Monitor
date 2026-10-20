@@ -1,0 +1,220 @@
+{
+  "source": "Synthetic generalization cases; fictional posts, never published. Expected labels are not included in the model input.",
+  "posts": [
+    {
+      "id": "88001",
+      "type": "status",
+      "text": "明早将恢复本周的调用额度，具体时间待定。",
+      "url": "https://x.com/thsottiaux/status/88001",
+      "created_timestamp": 1792500100,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "88002",
+      "type": "status",
+      "text": "The monthly message budget has now been restored and can be used immediately.",
+      "url": "https://x.com/thsottiaux/status/88002",
+      "created_timestamp": 1792500200,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "88003",
+      "type": "status",
+      "text": "All set.",
+      "url": "https://x.com/thsottiaux/status/88003",
+      "created_timestamp": 1792500210,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "88004",
+      "type": "status",
+      "text": "It's fully available now.",
+      "url": "https://x.com/thsottiaux/status/88004",
+      "created_timestamp": 1792500300,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": {
+        "status": "99004",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "88005",
+      "type": "status",
+      "text": "Applied successfully.",
+      "url": "https://x.com/thsottiaux/status/88005",
+      "created_timestamp": 1792500400,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": {
+        "status": "99999",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "88006",
+      "type": "status",
+      "text": "Quota refresh.",
+      "url": "https://x.com/thsottiaux/status/88006",
+      "created_timestamp": 1792500500,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "88007",
+      "type": "status",
+      "text": "Would you restore our weekly request budget before the weekend?",
+      "url": "https://x.com/thsottiaux/status/88007",
+      "created_timestamp": 1792500600,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "88008",
+      "type": "status",
+      "text": "If we restore usage budgets again, we'll announce it. No such change is scheduled.",
+      "url": "https://x.com/thsottiaux/status/88008",
+      "created_timestamp": 1792500700,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "88009",
+      "type": "status",
+      "text": "Password reset emails are working again.",
+      "url": "https://x.com/thsottiaux/status/88009",
+      "created_timestamp": 1792500800,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "88010",
+      "type": "status",
+      "text": "Finished.",
+      "url": "https://x.com/thsottiaux/status/88010",
+      "created_timestamp": 1792500900,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": {
+        "status": "99010",
+        "screen_name": "thsottiaux"
+      }
+    }
+  ],
+  "context": [
+    {
+      "id": "99004",
+      "type": "status",
+      "text": "We will refresh the monthly usage budget once maintenance ends.",
+      "url": "https://x.com/thsottiaux/status/99004",
+      "created_timestamp": 1792500280,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    },
+    {
+      "id": "99006",
+      "type": "status",
+      "text": "That quota refresh has completed now.",
+      "url": "https://x.com/thsottiaux/status/99006",
+      "created_timestamp": 1792500550,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": {
+        "status": "88006",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "99010",
+      "type": "status",
+      "text": "I am migrating the documentation site today.",
+      "url": "https://x.com/thsottiaux/status/99010",
+      "created_timestamp": 1792500880,
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "media": {},
+      "replying_to": null
+    }
+  ],
+  "expected_classes": {
+    "88001": [
+      "announced"
+    ],
+    "88002": [
+      "confirmed"
+    ],
+    "88003": [
+      "uncertain"
+    ],
+    "88004": [
+      "confirmed"
+    ],
+    "88005": [
+      "uncertain"
+    ],
+    "88006": [
+      "uncertain"
+    ],
+    "88007": [
+      "discussion"
+    ],
+    "88008": [
+      "discussion"
+    ],
+    "88009": [
+      "unrelated"
+    ],
+    "88010": [
+      "unrelated"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+# Runtime state may contain fetched posts, analysis output, and local errors.
+/work/tibo-monitor-runtime/
+/outputs/tibo-monitor-reports/
+
+# Local configuration and Python cache files.
+.env
+__pycache__/
+*.py[cod]

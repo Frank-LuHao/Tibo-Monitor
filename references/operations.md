@@ -8,6 +8,14 @@
 
 分析最多自动尝试三次，第一次失败等待约五分钟、第二次失败等待约十分钟，第三次失败保留为 `failed`。修复网络或登录问题后用 `retry-failed` 重新排队。崩溃时的 `analyzing` 任务在重启后恢复，报告写入完成后才标记 `done`。
 
+设置 `TIBO_MONITOR_FAILURE_EMAIL` 并取得用户对邮件通知的明确授权后，程序会在新任务第三次分析失败时，将同批进入 `failed` 的帖子合并为一封邮件。正文只包含失败背景、帖子链接、状态目录和是否重新排队的待决策事项；不发送原始模型日志。未配置收件人时，告警保留在本地队列。主动停止保留队列并退还本次尝试，不产生失败告警。已有历史 `failed` 不自动补发。
+
+正式监控必须在非沙箱本机环境启动（Codex 工具用 `require_escalated`），以便邮件子进程通过 `AGENTLY_WORKSPACE=codex agently-cli message +send ... --confirmed` 复用钥匙串授权。首次使用先阅读 `agently-mail` skill，在相同环境以 `AGENTLY_WORKSPACE=codex agently-cli +me` 检查授权；不要把测试邮件当作必要检查。邮件收件人通过 `TIBO_MONITOR_FAILURE_EMAIL` 配置，不要把个人邮箱或密钥写入仓库。
+
+飞书通知脚本路径通过 `TIBO_MONITOR_FEISHU_NOTIFY` 配置；未设置时不尝试外发，通知保留在本地队列。不要提交个人路径、webhook 或访问凭据。
+
+邮件队列与分析状态保存在同一 SQLite 中。`status.failure_mail` 显示 `pending`、`sending`、`sent`、`error`、`unknown` 的数量。发送成功才标记 `sent`；网络/服务错误最多发送尝试三次，等待约五、十分钟。其他明确失败记为 `error`；超时或发送中崩溃记为 `unknown`，需先核对发件箱，不能盲目重发。发送失败不改动帖子的 `failed` 状态，不把排队等同于已发送。
+
 查询异常指数退避至最多一小时；429 尊重 `Retry-After`。每轮最多五页，覆盖不足或游标重复时不推进水位，日志提示 coverage gap。连续缺口需要调查分页或增加覆盖范围，不能宣称无新帖或无遗漏。
 
 首次采集只读取当前一页历史；模型上下文包括已保存的先前帖子、引用及能够读取的被回复帖子。独立 Done 不能仅凭时间接近升级为明确完成。
@@ -24,13 +32,13 @@
 python -X utf8 -B 'SKILL_DIR/scripts/test_monitor.py'
 ```
 
-只有需要验证模型链路时执行五条真实历史帖分类，消耗一次 Codex 分析用量：
+只有需要验证模型链路时执行十条合成动态分类，消耗一次 Codex 分析用量：
 
 ```powershell
 python -X utf8 -B 'SKILL_DIR/scripts/verify_codex.py' --output-dir 'TASK_DIR/outputs/tibo-monitor-validation'
 ```
 
-测试样本随附在 `references/validation-fixtures.json`，无需原工作区档案；与正式队列隔离。输出包括逐条中文报告和 `validation-result.json`。这些样本用于验证调用与关键边界，不代表对未来所有动态的准确率保证。
+默认样本随附在 `references/generic-validation-fixtures.json`，覆盖不同措辞的预告、已完成、简短关联回应、缺失证据、未来证据、请求、条件句和非额度重置；这些合成动态只作测试，不是真实公告，也不嵌入分析 prompt。与正式队列隔离，输出包括逐条中文报告和 `validation-result.json`。历史样本保留在 `references/validation-fixtures.json`，需要时可用 `--fixtures` 显式指定。这些样本用于验证调用与关键边界，不代表对未来所有动态的准确率保证。
 
 ## 协议来源
 
