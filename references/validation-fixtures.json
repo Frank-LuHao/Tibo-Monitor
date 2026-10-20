@@ -1,0 +1,221 @@
+{
+  "source": "FxTwitter snapshots verified 2026-10-20; no runtime state or credentials",
+  "posts": [
+    {
+      "id": "2112432076767289678",
+      "type": "status",
+      "text": "Day 15/ Nevermind, we're still cooking... and reset. Enjoy.",
+      "url": "https://x.com/thsottiaux/status/2112432076767289678",
+      "created_timestamp": 1792478028,
+      "replying_to": null,
+      "media": {},
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "quote": {
+        "id": "2112268918681485431",
+        "type": "status",
+        "text": "Day 15/ We're cooked",
+        "url": "https://x.com/thsottiaux/status/2112268918681485431",
+        "created_timestamp": 1792439128,
+        "replying_to": null,
+        "media": {},
+        "author": {
+          "id": "1953337039510003712",
+          "screen_name": "thsottiaux"
+        }
+      }
+    },
+    {
+      "id": "2111566005684289735",
+      "type": "status",
+      "text": "Done",
+      "url": "https://x.com/thsottiaux/status/2111566005684289735",
+      "created_timestamp": 1792271541,
+      "replying_to": null,
+      "media": {},
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "2110618732666257557",
+      "type": "status",
+      "text": "Done and dusted",
+      "url": "https://x.com/thsottiaux/status/2110618732666257557",
+      "created_timestamp": 1792045693,
+      "replying_to": null,
+      "media": {},
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      },
+      "quote": {
+        "id": "2110595554036400151",
+        "type": "status",
+        "text": "Landing within the next 2 hours",
+        "url": "https://x.com/thsottiaux/status/2110595554036400151",
+        "created_timestamp": 1792040167,
+        "replying_to": {
+          "screen_name": "thsottiaux",
+          "status": "2110595484180214059",
+          "url": "https://x.com/thsottiaux/status/2110595484180214059",
+          "profile_url": "https://x.com/thsottiaux"
+        },
+        "media": {},
+        "author": {
+          "id": "1953337039510003712",
+          "screen_name": "thsottiaux"
+        }
+      }
+    },
+    {
+      "id": "2111918768733753664",
+      "type": "status",
+      "text": "People have escaped the TL and are asking me for resets on the street now. I’ll make little cards to hand out",
+      "url": "https://x.com/thsottiaux/status/2111918768733753664",
+      "created_timestamp": 1792355646,
+      "replying_to": null,
+      "media": {},
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "2111492673890824348",
+      "type": "status",
+      "text": "Day 13/ Le limit reset",
+      "url": "https://x.com/thsottiaux/status/2111492673890824348",
+      "created_timestamp": 1792254057,
+      "replying_to": null,
+      "media": {
+        "all": [
+          {
+            "type": "photo",
+            "id": "2111492634128920576",
+            "url": "https://pbs.twimg.com/media/HU2HXRMbsAAqviR.jpg?name=orig",
+            "width": 1672,
+            "height": 941
+          }
+        ],
+        "photos": [
+          {
+            "type": "photo",
+            "id": "2111492634128920576",
+            "url": "https://pbs.twimg.com/media/HU2HXRMbsAAqviR.jpg?name=orig",
+            "width": 1672,
+            "height": 941
+          }
+        ]
+      },
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    }
+  ],
+  "context": [
+    {
+      "id": "2111492673890824348",
+      "type": "status",
+      "text": "Day 13/ Le limit reset",
+      "url": "https://x.com/thsottiaux/status/2111492673890824348",
+      "created_timestamp": 1792254057,
+      "replying_to": null,
+      "media": {
+        "all": [
+          {
+            "type": "photo",
+            "id": "2111492634128920576",
+            "url": "https://pbs.twimg.com/media/HU2HXRMbsAAqviR.jpg?name=orig",
+            "width": 1672,
+            "height": 941
+          }
+        ],
+        "photos": [
+          {
+            "type": "photo",
+            "id": "2111492634128920576",
+            "url": "https://pbs.twimg.com/media/HU2HXRMbsAAqviR.jpg?name=orig",
+            "width": 1672,
+            "height": 941
+          }
+        ]
+      },
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "2111492738025959922",
+      "type": "status",
+      "text": "Landing sometime today by EOD PST",
+      "url": "https://x.com/thsottiaux/status/2111492738025959922",
+      "created_timestamp": 1792254073,
+      "replying_to": {
+        "screen_name": "thsottiaux",
+        "status": "2111492673890824348",
+        "url": "https://x.com/thsottiaux/status/2111492673890824348",
+        "profile_url": "https://x.com/thsottiaux"
+      },
+      "media": {},
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "2110595484180214059",
+      "type": "status",
+      "text": "The reports of my reset button being lost are greatly exaggerated\n\nDay 10/ Reset",
+      "url": "https://x.com/thsottiaux/status/2110595484180214059",
+      "created_timestamp": 1792040151,
+      "replying_to": null,
+      "media": {},
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "2110595554036400151",
+      "type": "status",
+      "text": "Landing within the next 2 hours",
+      "url": "https://x.com/thsottiaux/status/2110595554036400151",
+      "created_timestamp": 1792040167,
+      "replying_to": {
+        "screen_name": "thsottiaux",
+        "status": "2110595484180214059",
+        "url": "https://x.com/thsottiaux/status/2110595484180214059",
+        "profile_url": "https://x.com/thsottiaux"
+      },
+      "media": {},
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    }
+  ],
+  "expected_classes": {
+    "2112432076767289678": [
+      "confirmed",
+      "announced"
+    ],
+    "2111566005684289735": [
+      "uncertain"
+    ],
+    "2110618732666257557": [
+      "confirmed"
+    ],
+    "2111918768733753664": [
+      "discussion"
+    ],
+    "2111492673890824348": [
+      "announced"
+    ]
+  }
+}
