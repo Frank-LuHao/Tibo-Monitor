@@ -1,0 +1,149 @@
+{
+  "source": "Synthetic quota policy announcements, requests, denials and reset boundaries; no live notifications",
+  "posts": [
+    {
+      "id": "200",
+      "type": "status",
+      "created_timestamp": 1793200200,
+      "text": "Starting today, weekly usage limits double for Pro and Business. We cancelled the planned Pro reduction; your existing Work and Codex allowance stays the same.",
+      "url": "https://x.com/thsottiaux/status/200",
+      "author": {
+        "screen_name": "thsottiaux",
+        "id": "1953337039510003712"
+      }
+    },
+    {
+      "id": "201",
+      "type": "status",
+      "created_timestamp": 1793200201,
+      "text": "Starting Friday, Team workspace usage caps increase from 400 to 800 requests each week.",
+      "url": "https://x.com/thsottiaux/status/201",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "202",
+      "type": "status",
+      "created_timestamp": 1793200202,
+      "text": "The temporary extra allowance for Pro users will continue for another month.",
+      "url": "https://x.com/thsottiaux/status/202",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "203",
+      "type": "status",
+      "created_timestamp": 1793200203,
+      "text": "We cancelled the planned quota cut. Your existing Pro allowance stays as it is.",
+      "url": "https://x.com/thsottiaux/status/203",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "204",
+      "type": "status",
+      "created_timestamp": 1793200204,
+      "text": "Could Pro users please get twice the limit?",
+      "url": "https://x.com/thsottiaux/status/204",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "205",
+      "type": "status",
+      "created_timestamp": 1793200205,
+      "text": "If capacity permits, we might consider more usage for Pro. No change is being announced.",
+      "url": "https://x.com/thsottiaux/status/205",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "206",
+      "type": "status",
+      "created_timestamp": 1793200206,
+      "text": "We are not changing or resetting any usage limits today.",
+      "url": "https://x.com/thsottiaux/status/206",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "207",
+      "type": "status",
+      "created_timestamp": 1793200207,
+      "text": "The subscription price is lower; usage limits remain unchanged.",
+      "url": "https://x.com/thsottiaux/status/207",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "208",
+      "type": "status",
+      "created_timestamp": 1793200208,
+      "text": "We have completed the usage quota reset. It is live now.",
+      "url": "https://x.com/thsottiaux/status/208",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    },
+    {
+      "id": "209",
+      "type": "status",
+      "created_timestamp": 1793200209,
+      "text": "We will reset usage quotas tomorrow morning.",
+      "url": "https://x.com/thsottiaux/status/209",
+      "author": {
+        "id": "1953337039510003712",
+        "screen_name": "thsottiaux"
+      }
+    }
+  ],
+  "context": [],
+  "expected_classes": {
+    "201": [
+      "quota_change"
+    ],
+    "202": [
+      "quota_change"
+    ],
+    "203": [
+      "quota_change"
+    ],
+    "204": [
+      "discussion"
+    ],
+    "205": [
+      "discussion"
+    ],
+    "206": [
+      "discussion"
+    ],
+    "207": [
+      "unrelated",
+      "discussion"
+    ],
+    "208": [
+      "confirmed"
+    ],
+    "209": [
+      "announced"
+    ],
+    "200": [
+      "quota_change"
+    ]
+  }
+}

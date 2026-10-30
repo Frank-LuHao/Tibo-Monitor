@@ -33,7 +33,7 @@ MAX_ATTEMPTS = 3
 FAILURE_EMAIL = os.environ.get("TIBO_MONITOR_FAILURE_EMAIL", "").strip()
 FEISHU_NOTIFY = os.environ.get("TIBO_MONITOR_FEISHU_NOTIFY", "").strip()
 ANNOUNCEMENT_WINDOW = 300
-RESET_CLASSES = {"confirmed", "announced", "discussion", "unrelated", "uncertain"}
+RESET_CLASSES = {"confirmed", "announced", "quota_change", "discussion", "unrelated", "uncertain"}
 MACOS_BUNDLED_CODEX = Path("/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
 
 
@@ -216,7 +216,7 @@ class Store:
         with self.connect() as db:
             db.execute("UPDATE posts SET state='done',analysis=?,error=NULL WHERE id=?",
                        (json.dumps(analysis, ensure_ascii=False), post["id"]))
-            if analysis["reset_class"] in {"announced", "confirmed"}:
+            if analysis["reset_class"] in {"announced", "confirmed", "quota_change"}:
                 db.execute("INSERT OR IGNORE INTO reset_notification "
                            "(post_id,reset_class,created,url,queued_at) VALUES(?,?,?,?,?)",
                            (post["id"], analysis["reset_class"], post["created_timestamp"],
@@ -311,7 +311,10 @@ def send_reset_notification(rows):
     if not FEISHU_NOTIFY:
         raise MailDeliveryError("TIBO_MONITOR_FEISHU_NOTIFY is not configured")
     latest = max(rows, key=lambda row: (row["created"], row["post_id"]))
-    if latest["reset_class"] == "confirmed":
+    if latest["reset_class"] == "quota_change":
+        analysis = json.loads(latest["analysis"])
+        message = "【Tibo 额度公告】\n" + analysis["summary_zh"]
+    elif latest["reset_class"] == "confirmed":
         message = "【Tibo Reset】\nTibo 已确认额度 reset 生效。"
     else:
         message = "【Tibo Reset】\nTibo 宣布额度将 reset。"
@@ -332,8 +335,10 @@ def process_reset_notifications(store, sender=send_reset_notification):
         return False
     now = time.time()
     with store.connect() as db:
-        row = db.execute("SELECT * FROM reset_notification WHERE state='pending' AND retry_at<=? "
-                         "AND (reset_class='confirmed' OR queued_at<=?) ORDER BY created,post_id LIMIT 1",
+        row = db.execute("SELECT n.*,p.analysis FROM reset_notification n JOIN posts p ON p.id=n.post_id "
+                         "WHERE n.state='pending' AND n.retry_at<=? "
+                         "AND (n.reset_class IN ('confirmed','quota_change') OR n.queued_at<=?) "
+                         "ORDER BY n.created,n.post_id LIMIT 1",
                          (now, now - ANNOUNCEMENT_WINDOW)).fetchone()
         if row is None:
             return False
@@ -474,7 +479,9 @@ def validate_analyses(value, posts, context):
             raise ValueError("Analysis cites an unavailable post")
         if item["reset_class"] not in RESET_CLASSES or item["evidence_strength"] not in {"explicit", "contextual", "none"}:
             raise ValueError("Invalid classification")
-        if item["reset_class"] in {"confirmed", "announced"} and not evidence:
+        if item["reset_class"] == "quota_change" and item["evidence_strength"] != "explicit":
+            raise ValueError("Quota announcement requires explicit evidence")
+        if item["reset_class"] in {"confirmed", "announced", "quota_change"} and not evidence:
             raise ValueError("Reset classification has no evidence")
     return analyses
 

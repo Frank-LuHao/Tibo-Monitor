@@ -8,7 +8,7 @@
         "properties": {
           "post_id": {"type": "string"},
           "summary_zh": {"type": "string"},
-          "reset_class": {"type": "string", "enum": ["confirmed", "announced", "discussion", "unrelated", "uncertain"]},
+          "reset_class": {"type": "string", "enum": ["confirmed", "announced", "quota_change", "discussion", "unrelated", "uncertain"]},
           "evidence_strength": {"type": "string", "enum": ["explicit", "contextual", "none"]},
           "evidence_post_ids": {"type": "array", "items": {"type": "string"}},
           "scope_zh": {"type": "string"},

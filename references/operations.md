@@ -47,3 +47,9 @@ python -X utf8 -B 'SKILL_DIR/scripts/verify_codex.py' --output-dir 'TASK_DIR/out
 - [Codex 非交互模式](https://learn.chatgpt.com/docs/non-interactive-mode)
 
 接口和登录方式变化时核对当前文档，避免将网络限制误判为账号无动态。
+
+## 额度公告队列
+
+`quota_change` 表示具体额度政策变化，沿用 `reset_notification` 表保存（无需改库或重建基线），与 reset 确认一样即时投递。仅 reset 预告等待五分钟合并。额度通知内容取对应分析摘要；保留原有帖子 ID 去重及 unknown 不盲目重发规则。变更规则默认只作用于之后分析的新帖，不批量重分析或重发历史报告。
+
+额度公告验证用例见 `quota-validation-fixtures.json`，可通过 `verify_codex.py --fixtures` 指定；全部为合成动态，不外发通知。
