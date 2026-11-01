@@ -12,9 +12,10 @@
           "evidence_strength": {"type": "string", "enum": ["explicit", "contextual", "none"]},
           "evidence_post_ids": {"type": "array", "items": {"type": "string"}},
           "scope_zh": {"type": "string"},
-          "reason_zh": {"type": "string"}
+          "reason_zh": {"type": "string"},
+          "reset_time_zh": {"type": "string"}
         },
-        "required": ["post_id", "summary_zh", "reset_class", "evidence_strength", "evidence_post_ids", "scope_zh", "reason_zh"],
+        "required": ["post_id", "summary_zh", "reset_class", "evidence_strength", "evidence_post_ids", "scope_zh", "reason_zh", "reset_time_zh"],
         "additionalProperties": false
       }
     }

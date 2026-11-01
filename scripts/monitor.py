@@ -311,13 +311,21 @@ def send_reset_notification(rows):
     if not FEISHU_NOTIFY:
         raise MailDeliveryError("TIBO_MONITOR_FEISHU_NOTIFY is not configured")
     latest = max(rows, key=lambda row: (row["created"], row["post_id"]))
+    if latest["reset_class"] == "announced":
+        timed = [r for r in rows if json.loads(r["analysis"]).get("reset_time_zh", "").strip()]
+        if timed:
+            latest = max(timed, key=lambda row: (row["created"], row["post_id"]))
+    analysis = json.loads(latest["analysis"])
     if latest["reset_class"] == "quota_change":
-        analysis = json.loads(latest["analysis"])
         message = "【Tibo 额度公告】\n" + analysis["summary_zh"]
     elif latest["reset_class"] == "confirmed":
         message = "【Tibo Reset】\nTibo 已确认额度 reset 生效。"
     else:
         message = "【Tibo Reset】\nTibo 宣布额度将 reset。"
+    if latest["reset_class"] in {"announced", "confirmed"}:
+        reset_time = analysis.get("reset_time_zh", "").strip()
+        if reset_time:
+            message += "\n" + reset_time
     message += "\n原帖：" + latest["url"]
     try:
         result = subprocess.run([FEISHU_NOTIFY, message], capture_output=True, timeout=20)
@@ -343,8 +351,9 @@ def process_reset_notifications(store, sender=send_reset_notification):
         if row is None:
             return False
         if row["reset_class"] == "announced":
-            rows = db.execute("SELECT * FROM reset_notification WHERE state='pending' AND reset_class='announced' "
-                              "AND created>=? AND created<=? ORDER BY created,post_id",
+            rows = db.execute("SELECT n.*,p.analysis FROM reset_notification n JOIN posts p ON p.id=n.post_id "
+                              "WHERE n.state='pending' AND n.reset_class='announced' "
+                              "AND n.created>=? AND n.created<=? ORDER BY n.created,n.post_id",
                               (row["created"], row["created"] + ANNOUNCEMENT_WINDOW)).fetchall()
         else:
             rows = [row]
@@ -468,9 +477,12 @@ def validate_analyses(value, posts, context):
     schema = json.loads((ROOT / "analysis.schema.json").read_text(encoding="utf-8"))
     required = set(schema["properties"]["analyses"]["items"]["required"])
     for item in analyses:
-        if set(item) != required:
+        # Existing saved analyses may predate the optional timing field.
+        if set(item) not in (required, required - {"reset_time_zh"}):
             raise ValueError("Invalid analysis fields")
-        for field in required - {"evidence_post_ids"}:
+        if "reset_time_zh" in item and not isinstance(item["reset_time_zh"], str):
+            raise ValueError("Invalid reset timing")
+        for field in required - {"evidence_post_ids", "reset_time_zh"}:
             if not isinstance(item[field], str) or not item[field].strip():
                 raise ValueError("Invalid text field: " + field)
         evidence = item["evidence_post_ids"]

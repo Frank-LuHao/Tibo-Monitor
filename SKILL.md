@@ -46,31 +46,20 @@ python -X utf8 'SKILL_DIR/scripts/monitor.py' retry-failed
 设置 `TIBO_MONITOR_FEISHU_NOTIFY` 为本地通知脚本路径并取得用户对通知的明确授权后，对 `announced`、`confirmed` 和 `quota_change` 发送通知；`discussion`、`uncertain` 与 `unrelated` 不发送。未配置脚本时通知留在本地队列。
 
 - 对同一次 reset 的连续公告等待最多五分钟收集补充帖，只发一条公告通知。使用最具体的预告帖作为原帖链接。
-- `announced` 且存在明确或可由相对时间计算的生效时间时：
-
-  ```text
-  【Tibo Reset】
-  Tibo 宣布额度将 reset，预计北京时间 <MM/DD HH:mm> 生效。
-  原帖：<url>
-  ```
-
-- `announced` 但没有可计算时间时，省略预计时间这句话：
+- reset 通知保留原帖明确给出的时间点或大致范围；能可靠换算的时间点及区间写北京时间，来源时区不明的范围保留原帖措辞，不自行推成精确日期。没有时间依据则省略时间行。
+- `announced`：
 
   ```text
   【Tibo Reset】
   Tibo 宣布额度将 reset。
+  <有依据时写时间，例如：原帖称接下来两天会有额度重置（发帖于北京时间 10/31 13:42）。>
   原帖：<url>
   ```
 
-- `confirmed`：
+- `confirmed` 使用“Tibo 已确认额度 reset 生效。”，原帖说明实际重置时间时同样保留。
+- 相对时间锚定原帖，而非发送当天；未说明来源时区的“接下来两天”等日历范围附北京时间发帖时间，“接下来两天”不能改写成已经生效或精确起止时刻。通知使用分析字段 `reset_time_zh`；无时间时该字段为空，不添加占位说明。
 
-  ```text
-  【Tibo Reset】
-  Tibo 已确认额度 reset 生效。
-  原帖：<url>
-  ```
-
-通知中不添加状态后缀、括号说明、适用范围推断或关于用户个人账户的推断。`原帖：` 与链接始终同行。
+通知中不添加状态后缀、无关括号说明、适用范围推断或关于用户个人账户的推断。`原帖：` 与链接始终同行。
 
 故障、队列恢复和测试命令见 [operations.md](references/operations.md)，仅在需要时读取。
 

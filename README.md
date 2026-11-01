@@ -64,3 +64,9 @@ python3 scripts/verify_codex.py
 ```sh
 python3 scripts/verify_codex.py --fixtures references/quota-validation-fixtures.json --output-dir outputs/quota-validation
 ```
+
+## Reset 时间展示
+
+Reset 通知保留原帖明确给出的时间点或大致范围，可可靠换算的时间点和区间优先显示北京时间。时区不明的“接下来两天”等日历范围保留原话，并附北京时间发帖时间，避免把发送当天当作时间锚点。没有重置时间依据时省略时间行，不混入其他功能的发布时间。
+
+旧分析没有 `reset_time_zh` 仍可读取；本次更新不会自动重分析或重发历史已发送帖子。

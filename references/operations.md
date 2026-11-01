@@ -53,3 +53,5 @@ python -X utf8 -B 'SKILL_DIR/scripts/verify_codex.py' --output-dir 'TASK_DIR/out
 `quota_change` 表示具体额度政策变化，沿用 `reset_notification` 表保存（无需改库或重建基线），与 reset 确认一样即时投递。仅 reset 预告等待五分钟合并。额度通知内容取对应分析摘要；保留原有帖子 ID 去重及 unknown 不盲目重发规则。变更规则默认只作用于之后分析的新帖，不批量重分析或重发历史报告。
 
 额度公告验证用例见 `quota-validation-fixtures.json`，可通过 `verify_codex.py --fixtures` 指定；全部为合成动态，不外发通知。
+
+重置时间通过 `reset_time_zh` 保存并显示在飞书通知中，支持明确时间点和大致范围；无依据时为空。旧分析没有该字段仍可读取，不批量改写或重发历史已发送通知。预告合并查询同时读取对应分析，以免时间字段在队列中丢失。
